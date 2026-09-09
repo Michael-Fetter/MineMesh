@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Mine Viewer</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    
+    #nodePanel{
+
+    position:absolute;
+
+    top:85px;
+    left:20px;
+
+    width:280px;
+
+    max-height:80vh;
+
+    overflow-y:auto;
+
+    background:#222;
+
+    color:white;
+
+    padding:15px;
+
+    border-radius:10px;
+
+    font-family:Arial;
+
+  }
+
+  #ui, #nodePanel {
+    position: absolute;
+    z-index: 10;
+    pointer-events: auto;
+  }
+
+
+  .nodeCard {
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    background: #333;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .nodeCard.selected {
+    background: #555;
+    outline: 2px solid white;
+    transform: scale(1.02);
+  }
+
+  .nodeCard:hover{
+
+      background:#444;
+
+  }
+
+  #trackerPanel{
+
+    position:absolute;
+
+    top:85px;
+    right:20px;
+
+    width:280px;
+
+    max-height:80vh;
+
+    overflow-y:auto;
+
+    background:#222;
+
+    color:white;
+
+    padding:15px;
+
+    border-radius:10px;
+
+    font-family:Arial;
+
+  }
+
+  #headerBar {
+      position: absolute;
+      top: 0;
+      left: 0;
+
+      width: 100%;
+      height: 60px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      background: rgba(20, 20, 20, 0.9);
+
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 2px;
+
+      z-index: 100;
+
+      border-bottom: 2px solid #00ffff49;
+      box-shadow: 0 2px 15px rgba(0, 255, 255, 0.3);
+  }
+
+ #positionMenu {
+    position: fixed;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width: 260px;
+
+    background: #222;
+    color: white;
+
+    padding: 20px;
+    border-radius: 10px;
+
+    font-family: Arial;
+
+    z-index: 100;
+}
+
+.positionMenuContent {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.positionMenuContent h3 {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+}
+
+.positionMenuContent label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    font-size: 14px;
+}
+
+.positionMenuContent input {
+    width: 110px;
+    padding: 8px;
+
+    box-sizing: border-box;
+
+    background: #333;
+    color: white;
+
+    border: 1px solid #555;
+    border-radius: 6px;
+
+    font-size: 14px;
+    outline: none;
+}
+
+.positionMenuContent input:focus {
+    border-color: #888;
+}
+
+.positionMenuContent button {
+    padding: 9px 14px;
+
+    background: #555;
+    color: white;
+
+    border: none;
+    border-radius: 6px;
+
+    font-family: Arial;
+    font-size: 14px;
+    font-weight: bold;
+
+    cursor: pointer;
+
+    transition: 0.15s;
+}
+
+.positionMenuContent button:hover {
+    background: #666;
+}
+
+.positionMenuContent button:active {
+    background: #444;
+    transform: scale(0.98);
+}
+
+.setPositionBtn {
+    width: 100%;
+    padding: 9px;
+
+    background: #555;
+    color: white;
+
+    border: none;
+    border-radius: 6px;
+
+    font-family: Arial;
+    font-size: 14px;
+    font-weight: bold;
+
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.setPositionBtn:hover {
+    background: #666;
+}
+
+.setPositionBtn:active {
+    background: #444;
+    transform: scale(0.98);
+}
+
+  
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./three/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+
+<!-- UI stuff  --> 
+
+<div id="headerBar">
+    AUTS 3D Mine Viewer
+</div>
+
+
+<div id="nodePanel">
+
+    <h2>Nodes</h2>
+
+    <div id="nodeList">
+
+    </div>
+
+</div>
+
+<div id="trackerPanel">
+    <h2>Trackers</h2>
+    <div id="trackerList"></div>
+</div>
+
+
+<!--Java --> 
+
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from './three/examples/jsm/loaders/GLTFLoader.js';
+import { OrbitControls } from './three/examples/jsm/controls/OrbitControls.js';
+
+// scene
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+// 0x111111
+
+// clicking stuff
+
+const clickableObjects = [];
+
+// TEMPORARY AXIS FOR DEVELOPMENT
+
+const axesHelper = new THREE.AxesHelper(10);
+scene.add(axesHelper);
+
+function createLabel(text, position) {
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    canvas.width = 128;
+    canvas.height = 128;
+
+    context.fillStyle = "white";
+    context.font = "80px Arial";
+    context.fillText(text, 20, 90);
+
+
+    const texture = new THREE.CanvasTexture(canvas);
+
+    const material = new THREE.SpriteMaterial({
+        map: texture
+    });
+
+
+    const sprite = new THREE.Sprite(material);
+
+    sprite.position.copy(position);
+
+    sprite.scale.set(1,1,1);
+
+    scene.add(sprite);
+
+}
+
+createLabel(
+    "X",
+    new THREE.Vector3(11,0,0)
+);
+
+createLabel(
+    "Y",
+    new THREE.Vector3(0,11,0)
+);
+
+createLabel(
+    "Z",
+    new THREE.Vector3(0,0,11)
+);
+
+const grid = new THREE.GridHelper(50,50);
+
+scene.add(grid);
+
+// nodes (after scene so position exists)
+
+const nodes = [];
+
+let selectedNode = null;  // for UI constant update
+
+const NODE_SCALE = 1; // global node size
+
+const nodeLoader = new GLTFLoader();
+
+let nodeTemplate;
+
+nodeLoader.load(
+    './models/nodeBruh.glb',
+    (gltf)=>{
+
+        nodeTemplate = gltf.scene;
+
+        createNode(
+            "1",
+            new THREE.Vector3(-1.075,1,1.875)
+        );
+
+        createNode(
+            "2",
+            new THREE.Vector3(-1.075,1,-1.325)
+        );
+
+        createNode(
+            "3",
+            new THREE.Vector3(1.075,1,-1.875)
+        );
+
+
+        refreshAllNodes();
+
+    }  
+    
+);
+
+function getNodeColour(node) {
+    const t = Math.min(node.gas / 100, 1);
+
+    const colour = new THREE.Color();
+    colour.setHSL(
+        (1 - t) * 0.33,  // green -> red
+        1,
+        0.5
+    );
+
+    return colour;
+}
+
+function updateNodeVisual(node) {
+    const colour = getNodeColour(node);
+    const isSelected = node === selectedNode;
+
+    node.mesh.traverse((child) => {
+        if (child.isMesh) {
+
+            child.material = new THREE.MeshBasicMaterial({
+                color: colour
+            });
+
+        }
+    });
+
+    node.mesh.scale.setScalar(
+        isSelected ? NODE_SCALE * 1.25 : NODE_SCALE
+    );
+}
+
+function createNode(id, position) {
+    const mesh = nodeTemplate.clone(true);
+
+    mesh.traverse((child) => {
+        if (child.isMesh) {
+            child.material = child.material.clone();
+        }
+    });
+
+    mesh.position.copy(position);
+    mesh.scale.setScalar(NODE_SCALE);
+
+    const node = {
+        id: id,
+        name: "Node: " + id,
+        position: position.clone(),
+        battery: 90,
+        gas: 12.5,
+        signal: 100,
+        status: "active",
+        mesh: mesh
+    };
+
+    mesh.userData.node = node;
+
+    scene.add(mesh);
+    nodes.push(node);
+    clickableObjects.push(mesh);   // important for raycasting
+
+    updateNodeVisual(node);
+}
+
+// node panel
+
+function updateNodePanel() {
+    const list = document.getElementById("nodeList");
+    list.innerHTML = "";
+
+    if (!selectedNode) {
+        list.innerHTML = `<div class="nodeCard">No node selected</div>`;
+    }
+
+    nodes.forEach((node) => {
+        const card = document.createElement("div");
+        card.className = "nodeCard";
+
+        if (selectedNode && selectedNode.id === node.id) {
+            card.classList.add("selected");
+        }
+
+        const colour = getNodeColour(node);
+        card.style.borderLeft = `8px solid #${colour.getHexString()}`;
+
+        card.innerHTML = `
+            <b>${node.name}</b><br>
+            Battery: ${node.battery}%<br>
+            Gas: ${node.gas.toFixed(1)} ppm<br><br>
+
+            <button class="setPositionBtn">Set Position</button>
+        `;
+
+        card.addEventListener("click", (e) => {
+            e.stopPropagation();
+            showNode(node);
+        });
+
+        const setPositionBtn = card.querySelector(".setPositionBtn");
+
+        setPositionBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openPositionMenu(node);
+        });
+
+        list.appendChild(card);
+    });
+}
+
+function openPositionMenu(node) {
+
+    // Remove existing menu
+    const existing = document.getElementById("positionMenu");
+    if (existing) {
+        existing.remove();
+    }
+
+    const menu = document.createElement("div");
+    menu.id = "positionMenu";
+
+    menu.innerHTML = `
+        <div class="positionMenuContent">
+
+            <h3>Set Position — ${node.name}</h3>
+
+            <label>
+                X:
+                <input id="positionX" type="number" step="0.1" value="${node.position.x}">
+            </label>
+
+            <label>
+                Y:
+                <input id="positionY" type="number" step="0.1" value="${node.position.y}">
+            </label>
+
+            <label>
+                Z:
+                <input id="positionZ" type="number" step="0.1" value="${node.position.z}">
+            </label>
+
+            <div>
+                <button id="confirmPosition">Set Position</button>
+                <button id="cancelPosition">Cancel</button>
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(menu);
+
+    document.getElementById("confirmPosition").addEventListener("click", () => {
+
+        const x = parseFloat(document.getElementById("positionX").value);
+        const y = parseFloat(document.getElementById("positionY").value);
+        const z = parseFloat(document.getElementById("positionZ").value);
+
+        node.position.set(x, y, z);
+        node.mesh.position.copy(node.position);
+
+        menu.remove();
+
+        refreshAllNodes();
+    });
+
+    document.getElementById("cancelPosition").addEventListener("click", () => {
+        menu.remove();
+    });
+}
+
+
+// Camera
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
+// Renderer
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// camera
+
+const controls = new OrbitControls(
+    camera,
+    renderer.domElement
+);
+
+controls.mouseButtons = {
+    LEFT: THREE.MOUSE.ROTATE,
+    MIDDLE: THREE.MOUSE.PAN,
+    RIGHT: THREE.MOUSE.PAN
+};
+
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
+controls.zoomToCursor = true;
+
+controls.target.set(0, 0, 0);
+
+controls.minDistance = 2;
+controls.maxDistance = 100;
+
+// raycaster (clicking stuff)
+
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener('click', (event) => {
+    if (event.target.closest('#ui') || event.target.closest('#nodePanel') || event.target.closest('#trackerPanel')) {
+        return;
+    }
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const hits = raycaster.intersectObjects(
+        clickableObjects,
+        true
+    );
+
+    if (hits.length > 0) {
+
+    let object = hits[0].object;
+
+    while (object) {
+
+        if (object.userData.node) {
+            showNode(object.userData.node);
+            return;
+        }
+
+        if (object.userData.tracker) {
+            showTracker(object.userData.tracker);
+            return;
+        }
+
+        object = object.parent;
+    }
+}
+});
+
+function showNode(node) {
+    if (selectedNode && selectedNode.id === node.id) {
+        selectedNode = null;   // deselect if already selected
+    } else {
+        selectedNode = node;   // select new node
+    }
+
+    refreshAllNodes();
+}
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x444444));
+
+
+const loader = new GLTFLoader();
+
+loader.load(
+  './models/3Dmine.glb',
+  (gltf) => {
+    const model = gltf.scene;
+
+    const box = new THREE.Box3().setFromObject(model);
+const size = new THREE.Vector3();
+
+box.getSize(size);
+
+console.log("MINE SIZE:", size);
+
+    model.scale.set(1, 1, 1);
+
+    //model.scale.set(5, 5, 5);
+    model.position.y = 0;
+    camera.position.set(0, 0, 0);
+
+     model.traverse((child) => {
+    if (child.isMesh) {
+
+      // 🌫 transparent surface
+      child.material = new THREE.MeshStandardMaterial({
+        color: 0x00ffcc,
+        transparent: true,
+        opacity: 0.15,
+        wireframe: false
+      });
+
+      // 🔷 wireframe overlay
+      const wire = new THREE.LineSegments(
+        new THREE.EdgesGeometry(child.geometry),
+        new THREE.LineBasicMaterial({
+          color: 0x00ffff,
+          transparent: true,
+          opacity: 0.7
+        })
+      );
+
+      child.add(wire);
+    }
+  });
+
+    scene.add(model);
+
+    console.log("GLB loaded ✔");
+  },
+  (progress) => {
+    console.log((progress.loaded / progress.total * 100).toFixed(1) + "% loaded");
+  },
+  (error) => {
+    console.error("GLB error ❌", error);
+  }
+);
+
+// trackers
+
+const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambient);
+
+const directional = new THREE.DirectionalLight(0xffffff, 2);
+directional.position.set(5, 10, 5);
+scene.add(directional);
+
+const trackers = [];
+
+let selectedTracker = null;
+
+const trackerloader = new GLTFLoader();
+
+function createTracker(id, name, position) {
+
+    trackerloader.load('./models/dot.glb', function(gltf) {
+
+        const dot = gltf.scene;
+
+        const box = new THREE.Box3().setFromObject(dot);
+const size = new THREE.Vector3();
+
+box.getSize(size);
+
+console.log("DOT SIZE:", size);
+
+        dot.position.copy(position);
+
+        // optional: scale your model
+        dot.scale.setScalar(0.02);
+
+        dot.rotation.x = Math.PI / 2;
+        dot.rotation.y = Math.PI;
+        dot.rotation.z = 0;
+
+        dot.userData.tracker = null;
+
+        const tracker = {
+            id: id,
+            mesh: dot,
+            name: name,
+            position: position.clone()
+        };
+
+        dot.userData.tracker = tracker;
+
+        scene.add(dot);
+        trackers.push(tracker);
+        //clickableObjects.push(dot); // for clicking 3d model instead
+
+        dot.traverse((child)=>{
+            if(child.isMesh){
+                clickableObjects.push(child);
+            }
+        });
+
+        updateTrackerVisual(tracker);
+
+    });
+}
+
+// create trackers
+
+  createTracker(1, 'A. Britton',
+    new THREE.Vector3(0,1,0)
+  );
+
+
+refreshAllTrackers();
+
+function updateTrackerVisual(tracker) {
+
+    const isSelected = tracker === selectedTracker;
+
+    tracker.mesh.traverse((child) => {
+
+        if (child.isMesh) {
+
+            child.material.color.setHex(
+                isSelected ? 0xffffff : 0x00ffff
+            );
+
+            // Glow
+            child.material.emissive.setHex(
+                isSelected ? 0xffffff : 0x00ffff
+            );
+
+            child.material.emissiveIntensity =
+                isSelected ? 2.5 : 1.5;
+
+            // Slightly enlarge when selected
+            child.scale.setScalar(
+                isSelected ? 1.2 : 1.0
+            );
+        }
+
+    });
+}
+
+function showTracker(tracker) {
+    if (selectedTracker && selectedTracker.id === tracker.id) {
+        selectedTracker = null;
+    } else {
+        selectedTracker = tracker;
+    }
+
+    refreshAllTrackers();
+}
+
+function updateTrackerPanel() {
+    const list = document.getElementById("trackerList");
+    list.innerHTML = "";
+
+    trackers.forEach((tracker) => {
+        const card = document.createElement("div");
+        card.className = "nodeCard";
+
+        if (selectedTracker && selectedTracker.id === tracker.id) {
+            card.classList.add("selected");
+        }
+
+        card.innerHTML = `
+            <b>T${tracker.id} - ${tracker.name}</b>
+        `;
+
+        card.addEventListener("click", (e) => {
+            e.stopPropagation();
+            showTracker(tracker);
+        });
+
+        list.appendChild(card);
+    });
+}
+
+function refreshAllTrackers() {
+    trackers.forEach((tracker) => {
+        updateTrackerVisual(tracker);
+    });
+
+    updateTrackerPanel();
+}
+
+// Animate
+function animate() {
+  requestAnimationFrame(animate);
+
+  controls.update();
+
+  renderer.render(scene, camera);
+  
+}
+
+// get tracker position
+
+function trilaterate(node1, d1, node2, d2, node3, d3) {
+
+    const x1 = node1.position.x;
+    const z1 = node1.position.z;
+
+    const x2 = node2.position.x;
+    const z2 = node2.position.z;
+
+    const x3 = node3.position.x;
+    const z3 = node3.position.z;
+
+    const A = 2 * (x2 - x1);
+    const B = 2 * (z2 - z1);
+
+    const C =
+        d1 * d1 - d2 * d2 +
+        x2 * x2 - x1 * x1 +
+        z2 * z2 - z1 * z1;
+
+    const D = 2 * (x3 - x1);
+    const E = 2 * (z3 - z1);
+
+    const F =
+        d1 * d1 - d3 * d3 +
+        x3 * x3 - x1 * x1 +
+        z3 * z3 - z1 * z1;
+
+    const denominator = A * E - B * D;
+
+    // Nodes are too close to being collinear
+    if (Math.abs(denominator) < 0.000001) {
+        return null;
+    }
+
+    const x = (C * E - B * F) / denominator;
+    const z = (A * F - C * D) / denominator;
+
+    return {
+        x: x,
+        z: z
+    };
+}
+
+// FAKE ESP UPDATE
+
+function refreshAllNodes() {
+    nodes.forEach((node) => {
+        updateNodeVisual(node);
+    });
+
+    updateNodePanel();
+}
+
+async function fakeESPUpdate() {
+   
+    try {
+
+        const response = await fetch("/data");
+
+        const data = await response.json();
+
+        const result = trilaterate(
+            nodes[0], data.d1,
+            nodes[1], data.d2,
+            nodes[2], data.d3
+        );
+
+        if (result){
+
+            const tracker = trackers[0];
+
+            tracker.position.x = result.x;
+            tracker.position.z = result.z;
+
+            tracker.mesh.position.copy(tracker.position);
+
+            refreshAllTrackers();
+            
+        }
+
+    }
+
+    catch (error) {
+
+        console.error("Error fetching data:", error);
+
+    }
+
+}
+
+/*
+
+function processDataForTracker(){
+
+
+
+}
+
+*/
+
+setInterval(fakeESPUpdate, 100);
+
+// ANIMATE
+
+animate();
+
+// Resize fix
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>
