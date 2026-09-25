@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "RangingAndBroadcast"
+		},
+		{
+			"path": "ReceivingAndHosting"
+		},
+		{
+			"path": "UWB_Config"
+		}
+	],
+	"settings": {}
+}

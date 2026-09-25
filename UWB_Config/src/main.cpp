@@ -1,15 +1,13 @@
 #include <Arduino.h>
 
-// ESP32 UART pins connected to UWB
 #define UWB_RX 16
 #define UWB_TX 17
+#define UWB_BAUD 115200
 
-// Use UART2
 HardwareSerial UWBSerial(2);
 
-void sendATCommand(String command, int waitTime)
+void sendATCommand(const String& command, unsigned long waitTime)
 {
-    // Remove anything left in the receive buffer
     while (UWBSerial.available())
     {
         UWBSerial.read();
@@ -18,7 +16,6 @@ void sendATCommand(String command, int waitTime)
     Serial.print("Sending: ");
     Serial.println(command);
 
-    // Send command to UWB
     UWBSerial.print(command);
     UWBSerial.print("\r\n");
 
@@ -35,10 +32,8 @@ void sendATCommand(String command, int waitTime)
     Serial.println("---------------------");
 }
 
-
 void setup()
 {
-    // USB connection between ESP32 and VS Code
     Serial.begin(115200);
 
     delay(2000);
@@ -46,9 +41,8 @@ void setup()
     Serial.println();
     Serial.println("Starting UWB configuration...");
 
-    // UART connection between ESP32 and UWB
     UWBSerial.begin(
-        115200,
+        UWB_BAUD,
         SERIAL_8N1,
         UWB_RX,
         UWB_TX
@@ -56,18 +50,18 @@ void setup()
 
     delay(2000);
 
-    // Configure UWB
-    sendATCommand("AT+SETCFG=0,0,1,1", 1000);
+    // AT+SETCFG=ID,MODE,CHANNEL,RATE
+    // ID:      0-7
+    // MODE:    0 = Tag, 1 = Base
+    // CHANNEL: 0 or 1
+    // RATE:    0 = 850 kbps, 1 = 6.8 Mbps
 
-    // Save configuration
+    sendATCommand("AT+SETCFG=4,0,1,1", 1000);
     sendATCommand("AT+SAVE", 3000);
-
-    // Read configuration back
     sendATCommand("AT+GETCFG", 1000);
 
     Serial.println("UWB configuration finished.");
 }
-
 
 void loop()
 {
